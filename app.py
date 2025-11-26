@@ -1,75 +1,91 @@
-"""Minimal Flask application setup for the SQLAlchemy assignment."""
 from flask import Flask, jsonify, request
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 
 from config import Config
 
-# These extension instances are shared across the app and models
-# so that SQLAlchemy can bind to the application context when the
-# factory runs.
 db = SQLAlchemy()
 migrate = Migrate()
 
 
 def create_app(test_config=None):
-    """Application factory used by Flask and the tests.
-
-    The optional ``test_config`` dictionary can override settings such as
-    the database URL to keep student tests isolated.
-    """
-
     app = Flask(__name__)
     app.config.from_object(Config)
+
     if test_config:
         app.config.update(test_config)
 
     db.init_app(app)
     migrate.init_app(app, db)
 
-    # Import models here so SQLAlchemy is aware of them before migrations
-    # or ``create_all`` run. Students will flesh these out in ``models.py``.
-    import models  # noqa: F401
+    from models import User, Post
 
     @app.route("/")
     def index():
-        """Simple sanity check route."""
-
         return jsonify({"message": "Welcome to the Flask + SQLAlchemy assignment"})
 
+    # ---------------------------
+    #   USERS ROUTES
+    # ---------------------------
     @app.route("/users", methods=["GET", "POST"])
     def users():
-        """List or create users.
 
-        TODO: Students should query ``User`` objects, serialize them to JSON,
-        and handle incoming POST data to create new users.
-        """
+        if request.method == "GET":
+            users = User.query.all()
+            return jsonify([u.to_dict() for u in users]), 200
 
-        return (
-            jsonify({"message": "TODO: implement user listing/creation"}),
-            501,
-        )
+        if request.method == "POST":
+            data = request.get_json()
 
+            if not data or "username" not in data:
+                return jsonify({"error": "username is required"}), 400
+
+            new_user = User(username=data["username"])
+            db.session.add(new_user)
+
+            try:
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+                return jsonify({"error": "username must be unique"}), 400
+
+            return jsonify(new_user.to_dict()), 201
+
+    # ---------------------------
+    #   POSTS ROUTES
+    # ---------------------------
     @app.route("/posts", methods=["GET", "POST"])
     def posts():
-        """List or create posts.
 
-        TODO: Students should query ``Post`` objects, include user data, and
-        allow creating posts tied to a valid ``user_id``.
-        """
+        if request.method == "GET":
+            posts = Post.query.all()
+            return jsonify([p.to_dict() for p in posts]), 200
 
-        return (
-            jsonify({"message": "TODO: implement post listing/creation"}),
-            501,
-        )
+        if request.method == "POST":
+            data = request.get_json()
+
+            required = ("title", "content", "user_id")
+            if not all(key in data for key in required):
+                return jsonify({"error": "title, content and user_id required"}), 400
+
+            user = User.query.get(data["user_id"])
+            if not user:
+                return jsonify({"error": "user_id does not exist"}), 400
+
+            new_post = Post(
+                title=data["title"],
+                content=data["content"],
+                user_id=data["user_id"],
+            )
+            db.session.add(new_post)
+            db.session.commit()
+
+            return jsonify(new_post.to_dict()), 201
 
     return app
 
 
-# Expose a module-level application for convenience with certain tools
 app = create_app()
 
-
 if __name__ == "__main__":
-    # Running ``python app.py`` starts the development server.
     app.run(debug=True)
