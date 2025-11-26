@@ -10,21 +10,18 @@ sys.path.append(str(ROOT))
 from app import create_app, db  # noqa: E402
 
 
-@pytest.fixture()
+@pytest.fixture
 def app():
-    app = create_app(
-        {
-            "TESTING": True,
-            "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",
-            "SQLALCHEMY_TRACK_MODIFICATIONS": False,
-        }
-    )
-
+    test_config = {
+        "TESTING": True,
+        "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:"
+    }
+    app = create_app(test_config)
+    
     with app.app_context():
         db.create_all()
-    yield app
-
-    with app.app_context():
+        yield app
+        db.session.remove()
         db.drop_all()
 
 

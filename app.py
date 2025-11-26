@@ -68,7 +68,7 @@ def create_app(test_config=None):
             if not all(key in data for key in required):
                 return jsonify({"error": "title, content and user_id required"}), 400
 
-            user = User.query.get(data["user_id"])
+            user = db.session.get(User, data["user_id"])
             if not user:
                 return jsonify({"error": "user_id does not exist"}), 400
 

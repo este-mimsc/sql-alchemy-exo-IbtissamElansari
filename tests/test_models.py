@@ -26,24 +26,27 @@ def test_post_has_required_columns(app):
 
 
 def test_relationship_between_user_and_post(app):
-    user = User(username="author")
-    post = Post(title="Hello", content="World", user=user)
+    with app.app_context():
+        user = User(username="author")
+        post = Post(title="Hello", content="World", user=user)
+    
+        db.session.add_all([user, post])
+        db.session.commit()
+        
+        assert post.user_id == user.id
+        assert user.posts[0] == post
 
-    db.session.add_all([user, post])
-    db.session.commit()
-
-    assert post.user.username == "author"
-    assert user.posts[0].title == "Hello"
 
 
 @pytest.mark.parametrize(
     "title,content", [("Short", "Body"), ("Another", "More content")]
 )
 def test_repr_helpers_include_names(title, content, app):
-    user = User(username="tester")
-    post = Post(title=title, content=content, user=user)
-    db.session.add_all([user, post])
-    db.session.commit()
-
-    assert "tester" in repr(user)
-    assert title in repr(post)
+    with app.app_context():
+        user = User(username="tester")
+        post = Post(title=title, content=content, user=user)
+        db.session.add_all([user, post])
+        db.session.commit()
+        
+        assert user.username in repr(user)
+        assert post.title in repr(post)

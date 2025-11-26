@@ -17,4 +17,5 @@ def test_models_importable():
 
 def test_db_extension_initialized(app):
     # The extension should be bound to the application context
-    assert db.engine.url.database in (":memory:", "blog.db")
+    with app.app_context():
+        assert db.engine.url.database in (":memory:", "blog.db")
